@@ -555,5 +555,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Documentation: [Link to docs]
 - Issues: [GitHub Issues]
 - Discussions: [GitHub Discussions]
-- Chat: [Discord/Slack link]# Taskflow
-# Taskflow
+- Chat: [Discord/Slack link]
