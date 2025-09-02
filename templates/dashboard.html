@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #10b981; }
+        .status-running { background-color: #3b82f6; }
+        .status-failed { background-color: #ef4444; }
+        .status-pending { background-color: #f59e0b; }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold text-gray-900">TaskFlow Dashboard</h1>
+                        <span id="connection-status" class="ml-4 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            Connected
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="refresh-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            Refresh
+                        </button>
+                        <div class="text-sm text-gray-500" id="last-updated">
+                            Last updated: --
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <!-- Overview Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="metric-card bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total Tasks</dt>
+                                    <dd class="text-lg font-medium text-gray-900" id="total-tasks">--</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Running</dt>
+                                    <dd class="text-lg font-medium text-gray-900" id="running-tasks">--</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Pending</dt>
+                                    <dd class="text-lg font-medium text-gray-900" id="pending-tasks">--</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metric-card bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Active Workers</dt>
+                                    <dd class="text-lg font-medium text-gray-900" id="active-workers">--</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Task Status Chart -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Task Status Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="task-status-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Metrics Chart -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">System Resources</h3>
+                        <div class="chart-container">
+                            <canvas id="system-metrics-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tables Row -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Queue Status -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Queue Status</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queue</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pending</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Running</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="queue-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Queue data will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Tasks -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Recent Tasks</h3>
+                        <div class="space-y-3" id="recent-tasks">
+                            <!-- Recent tasks will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workers Section -->
+            <div class="mt-8 bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Active Workers</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="workers-grid">
+                        <!-- Worker cards will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        class TaskFlowDashboard {
+            constructor() {
+                this.ws = null;
+                this.charts = {};
+                this.isConnected = false;
+                
+                this.initWebSocket();
+                this.initCharts();
+                this.bindEvents();
+                this.loadInitialData();
+            }
+
+            initWebSocket() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                this.ws = new WebSocket(wsUrl);
+                
+                this.ws.onopen = () => {
+                    this.isConnected = true;
+                    this.updateConnectionStatus(true);
+                    console.log('WebSocket connected');
+                };
+                
+                this.ws.onclose = () => {
+                    this.isConnected = false;
+                    this.updateConnectionStatus(false);
+                    console.log('WebSocket disconnected');
+                    
+                    // Reconnect after 5 seconds
+                    setTimeout(() => this.initWebSocket(), 5000);
+                };
+                
+                this.ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleWebSocketMessage(data);
+                };
+                
+                this.ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+            }
+
+            updateConnectionStatus(connected) {
+                const statusEl = document.getElementById('connection-status');
+                if (connected) {
+                    statusEl.textContent = 'Connected';
+                    statusEl.className = 'ml-4 px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800';
+                } else {
+                    statusEl.textContent = 'Disconnected';
+                    statusEl.className = 'ml-4 px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800';
+                }
+            }
+
+            handleWebSocketMessage(data) {
+                switch (data.type) {
+                    case 'task_event':
+                        this.handleTaskEvent(data);
+                        break;
+                    case 'system_event':
+                        this.handleSystemEvent(data);
+                        break;
+                    case 'metrics':
+                        this.handleMetricsUpdate(data);
+                        break;
+                }
+            }
+
+            handleTaskEvent(data) {
+                // Update UI based on task events
+                this.loadStats();
+                this.loadQueues();
+                this.loadRecentTasks();
+            }
+
+            handleSystemEvent(data) {
+                // Handle system events
+                console.log('System event:', data);
+            }
+
+            handleMetricsUpdate(data) {
+                // Update charts and metrics
+                this.updateSystemMetrics(data.metrics);
+                this.loadWorkers();
+            }
+
+            initCharts() {
+                // Task Status Chart
+                const taskStatusCtx = document.getElementById('task-status-chart').getContext('2d');
+                this.charts.taskStatus = new Chart(taskStatusCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Pending', 'Running', 'Completed', 'Failed'],
+                        datasets: [{
+                            data: [0, 0, 0, 0],
+                            backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#ef4444'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+
+                // System Metrics Chart
+                const systemMetricsCtx = document.getElementById('system-metrics-chart').getContext('2d');
+                this.charts.systemMetrics = new Chart(systemMetricsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'CPU %',
+                                data: [],
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.1
+                            },
+                            {
+                                label: 'Memory %',
+                                data: [],
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                tension: 0.1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+
+            bindEvents() {
+                document.getElementById('refresh-btn').addEventListener('click', () => {
+                    this.loadInitialData();
+                });
+            }
+
+            async loadInitialData() {
+                try {
+                    await Promise.all([
+                        this.loadStats(),
+                        this.loadQueues(),
+                        this.loadWorkers(),
+                        this.loadRecentTasks()
+                    ]);
+                    
+                    this.updateLastUpdated();
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                }
+            }
+
+            async loadStats() {
+                try {
+                    const response = await fetch('/stats');
+                    const stats = await response.json();
+                    
+                    document.getElementById('total-tasks').textContent = stats.total_tasks.toLocaleString();
+                    document.getElementById('running-tasks').textContent = stats.running_tasks.toLocaleString();
+                    document.getElementById('pending-tasks').textContent = stats.pending_tasks.toLocaleString();
+                    document.getElementById('active-workers').textContent = stats.active_workers.toLocaleString();
+                    
+                    // Update task status chart
+                    this.charts.taskStatus.data.datasets[0].data = [
+                        stats.pending_tasks,
+                        stats.running_tasks,
+                        stats.completed_tasks,
+                        stats.failed_tasks
+                    ];
+                    this.charts.taskStatus.update();
+                    
+                } catch (error) {
+                    console.error('Error loading stats:', error);
+                }
+            }
+
+            async loadQueues() {
+                try {
+                    const response = await fetch('/queues');
+                    const queues = await response.json();
+                    
+                    const tbody = document.getElementById('queue-table-body');
+                    tbody.innerHTML = '';
+                    
+                    for (const queueName of queues) {
+                        const statsResponse = await fetch(`/queues/${queueName}/stats`);
+                        const stats = await statsResponse.json();
+                        
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${queueName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${stats.pending_count}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${stats.running_count}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${stats.completed_count}</td>
+                        `;
+                        tbody.appendChild(row);
+                    }
+                } catch (error) {
+                    console.error('Error loading queues:', error);
+                }
+            }
+
+            async loadWorkers() {
+                try {
+                    const response = await fetch('/workers');
+                    const workers = await response.json();
+                    
+                    const grid = document.getElementById('workers-grid');
+                    grid.innerHTML = '';
+                    
+                    workers.forEach(worker => {
+                        const card = document.createElement('div');
+                        card.className = 'bg-gray-50 p-4 rounded-lg';
+                        card.innerHTML = `
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="text-sm font-medium text-gray-900">${worker.worker_id}</h4>
+                                <span class="status-dot status-${worker.status}"></span>
+                            </div>
+                            <div class="text-xs text-gray-500 space-y-1">
+                                <div>Tasks: ${worker.tasks_processed}</div>
+                                <div>CPU: ${worker.cpu_percent.toFixed(1)}%</div>
+                                <div>Memory: ${worker.memory_percent.toFixed(1)}%</div>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                } catch (error) {
+                    console.error('Error loading workers:', error);
+                }
+            }
+
+            async loadRecentTasks() {
+                try {
+                    const response = await fetch('/tasks?limit=10');
+                    const data = await response.json();
+                    
+                    const container = document.getElementById('recent-tasks');
+                    container.innerHTML = '';
+                    
+                    data.items.forEach(task => {
+                        const item = document.createElement('div');
+                        item.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors';
+                        item.onclick = () => this.showTaskDetails(task.id);
+                        item.innerHTML = `
+                            <div>
+                                <div class="text-sm font-medium text-gray-900">${task.name}</div>
+                                <div class="text-xs text-gray-500">${task.queue_name || 'default'} • ${task.id.slice(0, 8)}...</div>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="status-dot status-${task.status}"></span>
+                                <span class="text-xs text-gray-500">${task.status}</span>
+                                <span class="text-xs text-gray-400 ml-2">${task.retry_count}/${task.config?.max_retries || 100}</span>
+                            </div>
+                        `;
+                        container.appendChild(item);
+                    });
+                } catch (error) {
+                    console.error('Error loading recent tasks:', error);
+                }
+            }
+
+            updateSystemMetrics(metrics) {
+                if (!metrics.system) return;
+                
+                const now = new Date().toLocaleTimeString();
+                const chart = this.charts.systemMetrics;
+                
+                // Add new data point
+                chart.data.labels.push(now);
+                chart.data.datasets[0].data.push(metrics.system.cpu_percent);
+                chart.data.datasets[1].data.push(metrics.system.memory_percent);
+                
+                // Keep only last 20 data points
+                if (chart.data.labels.length > 20) {
+                    chart.data.labels.shift();
+                    chart.data.datasets.forEach(dataset => dataset.data.shift());
+                }
+                
+                chart.update('none');
+            }
+
+            updateLastUpdated() {
+                const now = new Date().toLocaleString();
+                document.getElementById('last-updated').textContent = `Last updated: ${now}`;
+            }
+
+            async showTaskDetails(taskId) {
+                try {
+                    const response = await fetch(`/tasks/${taskId}`);
+                    const task = await response.json();
+                    
+                    // Create modal if it doesn't exist
+                    let modal = document.getElementById('task-modal');
+                    if (!modal) {
+                        modal = this.createTaskModal();
+                    }
+                    
+                    // Update modal content
+                    this.updateTaskModal(modal, task);
+                    
+                    // Show modal
+                    modal.style.display = 'flex';
+                } catch (error) {
+                    console.error('Error loading task details:', error);
+                    alert('Failed to load task details');
+                }
+            }
+
+            createTaskModal() {
+                const modal = document.createElement('div');
+                modal.id = 'task-modal';
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                modal.style.display = 'none';
+                
+                modal.innerHTML = `
+                    <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-90vh overflow-y-auto">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Task Details</h3>
+                            <button onclick="document.getElementById('task-modal').style.display='none'" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="task-modal-content"></div>
+                    </div>
+                `;
+                
+                // Close modal when clicking outside
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                };
+                
+                document.body.appendChild(modal);
+                return modal;
+            }
+
+            updateTaskModal(modal, task) {
+                const content = modal.querySelector('#task-modal-content');
+                const statusColors = {
+                    'pending': 'bg-yellow-100 text-yellow-800',
+                    'running': 'bg-blue-100 text-blue-800',
+                    'success': 'bg-green-100 text-green-800',
+                    'failure': 'bg-red-100 text-red-800',
+                    'cancelled': 'bg-gray-100 text-gray-800',
+                    'timeout': 'bg-orange-100 text-orange-800'
+                };
+                
+                const statusColor = statusColors[task.status] || 'bg-gray-100 text-gray-800';
+                
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Task Name</label>
+                                <div class="text-sm text-gray-900">${task.name}</div>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Status</label>
+                                <div class="mt-1">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}">
+                                        ${task.status}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Task ID</label>
+                                <div class="text-xs font-mono text-gray-900 break-all">${task.id}</div>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Queue</label>
+                                <div class="text-sm text-gray-900">${task.queue_name || 'default'}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Worker</label>
+                                <div class="text-xs font-mono text-gray-900">${task.worker_id || 'N/A'}</div>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Retries</label>
+                                <div class="text-sm text-gray-900">${task.retry_count}/${task.config?.max_retries || 100}</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Created At</label>
+                                <div class="text-sm text-gray-900">${new Date(task.created_at).toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Duration</label>
+                                <div class="text-sm text-gray-900">${this.formatDuration(task)}</div>
+                            </div>
+                        </div>
+
+                        ${task.args && task.args.length > 0 ? `
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Arguments</label>
+                            <pre class="mt-1 text-xs bg-gray-50 p-2 rounded border overflow-x-auto">${JSON.stringify(task.args, null, 2)}</pre>
+                        </div>
+                        ` : ''}
+
+                        ${task.result ? `
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Result</label>
+                            <pre class="mt-1 text-xs bg-green-50 p-2 rounded border overflow-x-auto">${JSON.stringify(task.result, null, 2)}</pre>
+                        </div>
+                        ` : ''}
+
+                        ${task.error ? `
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Error</label>
+                            <div class="mt-1 text-sm bg-red-50 text-red-800 p-2 rounded border">${task.error}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${task.traceback ? `
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Traceback</label>
+                            <pre class="mt-1 text-xs bg-red-50 p-2 rounded border overflow-x-auto">${task.traceback}</pre>
+                        </div>
+                        ` : ''}
+
+                        ${task.logs && task.logs.length > 0 ? `
+                        <div>
+                            <label class="text-sm font-medium text-gray-600">Task Execution Log</label>
+                            <div class="mt-1 text-xs bg-blue-50 p-2 rounded border">
+                                ${task.logs.map(log => `<div class="text-blue-800">${log}</div>`).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            formatDuration(task) {
+                if (task.started_at && task.completed_at) {
+                    const start = new Date(task.started_at);
+                    const end = new Date(task.completed_at);
+                    const duration = (end - start) / 1000;
+                    return duration.toFixed(2) + 's';
+                } else if (task.started_at) {
+                    const start = new Date(task.started_at);
+                    const now = new Date();
+                    const duration = (now - start) / 1000;
+                    return duration.toFixed(0) + 's (running)';
+                }
+                return 'N/A';
+            }
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new TaskFlowDashboard();
+        });
+    </script>
+</body>
+</html>
